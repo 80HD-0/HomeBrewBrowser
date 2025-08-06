@@ -1,9 +1,9 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g `sdl2-config --cflags`
-LDFLAGS = `sdl2-config --libs` -lSDL2_ttf
+LDFLAGS = `sdl2-config --libs` -lSDL2_ttf -lcurl
 SRCS = hbb.c
 OBJS = $(SRCS:.c=.o)
-TARGET = HomeBrewBrowser
+TARGET = builds/HomeBrewBrowser
 $(TARGET): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
