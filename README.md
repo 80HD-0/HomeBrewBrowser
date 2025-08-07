@@ -2,7 +2,7 @@
 HBB is a completely homemade browser written in C based on all available online documentation.
 
 # Building
-HBB comes with a linux64 build in the builds folder, but if you want to build it for yourself, you will need libsdl2-dev, ggc, libgtk-4-dev, make, and build-essential.
+HBB comes with a linux64 build in the builds folder, but if you want to build it for yourself, you will need libcurl4-openssl-dev, ggc, libgtk-4-dev, make, and build-essential.
 example install command for debian-based distros like ubuntu (package names may vary):
 ```
 sudo apt update
