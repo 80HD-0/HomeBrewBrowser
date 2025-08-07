@@ -56,10 +56,27 @@ char *fetchURL(const char *geturl) {
 		return chunk.memory;
 	}
 }
+
+char *parseHTML(const char *data) {
+	while (*data != '\0') {
+		char tag[256] = {0};
+		int i = 0;
+		while (*data != '<') {
+			data++;
+		} data++;
+		while (*data != '>' && i < 255) {
+			tag[i++] = *data++;
+		} data++;
+		tag[i] = '\0';
+	}
+	return data;
+}
+
 void on_url_submit(GtkEntry *entry, gpointer user_data) {
     GtkTextBuffer *buffer = GTK_TEXT_BUFFER(user_data);
     const char *url = gtk_editable_get_text(GTK_EDITABLE(entry));
-    char *content = fetchURL(url);
+    char *rawcontent = fetchURL(url);
+    char *content = parseHTML(rawcontent);
 
     if (content) {
         gtk_text_buffer_set_text(buffer, content, -1);
