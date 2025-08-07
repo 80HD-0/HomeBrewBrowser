@@ -49,7 +49,6 @@ char *fetchURL(const char *geturl) {
 			fprintf(stderr, "Fetch failed: %s\n", curl_easy_strerror(res));
 		} else {
 			printf("%lu bytes retrieved from %s\n", (unsigned long)chunk.size, geturl);
-			printf("Data: %s\n", chunk.memory);
 		}
 		
 		curl_easy_cleanup(curl_handle);
@@ -58,8 +57,9 @@ char *fetchURL(const char *geturl) {
 }
 
 char *parseHTML(const char *data) {
-	while (*data != '\0') {
-		char tag[256] = {0};
+	char *tag = malloc(256);
+	if (!tag) return NULL;
+//	while (*data != '\0') {
 		int i = 0;
 		while (*data != '<') {
 			data++;
@@ -68,8 +68,9 @@ char *parseHTML(const char *data) {
 			tag[i++] = *data++;
 		} data++;
 		tag[i] = '\0';
-	}
-	return data;
+		printf(tag);
+//	}
+	return data; // This line completely skips this function - the rest of it is in testing
 }
 
 void on_url_submit(GtkEntry *entry, gpointer user_data) {
