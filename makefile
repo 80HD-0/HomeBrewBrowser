@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -g `sdl2-config --cflags`
-LDFLAGS = `sdl2-config --libs` -lSDL2_ttf -lcurl
+CFLAGS = -Wall -Wextra -g `pkg-config --cflags gtk4`
+LDFLAGS = `pkg-config --libs gtk4` -lcurl
 SRCS = hbb.c
 OBJS = $(SRCS:.c=.o)
 TARGET = builds/HomeBrewBrowser

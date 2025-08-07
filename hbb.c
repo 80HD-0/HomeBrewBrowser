@@ -1,9 +1,8 @@
 #include <stdio.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
+#include <gtk/gtk.h>
+#include <gtk/gtkentry.h>
 #include <string.h>
 #include <curl/curl.h>
-#define MAX_INPUT 256
 
 struct MemoryStruct {
 	char *memory;
@@ -25,54 +24,6 @@ static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
 	mem->memory[mem->size] = 0;
 	
 	return realsize;
-}
-
-void FixedRenderString(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color, int x, int y, int maxWidth, int maxHeight) {
-	char *saveptr_line;
-	char *copy = strdup(text);
-	char *line = strtok_r(copy, "\n", &saveptr_line);
-	int lineHeight = TTF_FontHeight(font);
-	while (line) {
-		char currentLine[2048] = "";
-		char tempLine[1024];
-		char *saveptr_word;
-		char *word = strtok_r(line, " ", &saveptr_word);
-		while (word) {
-			if (y + lineHeight > maxHeight) {
-				return;
-			}
-			snprintf(tempLine, sizeof(tempLine), "%s %s", currentLine, word);
-			int w = 0;
-			TTF_SizeText(font, tempLine, &w, NULL);
-			if (w > maxWidth) {
-				SDL_Surface* surface = TTF_RenderText_Blended(font, currentLine, color);
-				SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-				SDL_Rect dst = {x, y, surface->w, surface->h};
-				SDL_RenderCopy(renderer, texture, NULL, &dst);
-				SDL_FreeSurface(surface);
-				SDL_DestroyTexture(texture);
-				y += lineHeight;
-				snprintf(currentLine, sizeof(currentLine), "%s", tempLine);
-			} else {
-				snprintf(currentLine, sizeof(currentLine), "%s", tempLine);
-			}
-			word = strtok_r(NULL, " ", &saveptr_word);
-		}
-		if (strlen(currentLine) > 0) {
-			if (y + lineHeight > maxHeight) {
-				return;
-			}
-			SDL_Surface* surface = TTF_RenderText_Blended(font, currentLine, color);
-			SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-			SDL_Rect dst = {x, y, surface->w, surface->h};
-			SDL_RenderCopy(renderer, texture, NULL, &dst);
-			SDL_FreeSurface(surface);
-			SDL_DestroyTexture(texture);
-			y += lineHeight;
-		}
-		line = strtok_r(NULL, "\n", &saveptr_line);
-	}
-	free(copy);
 }
 
 char *fetchURL(const char *geturl) {
@@ -105,106 +56,48 @@ char *fetchURL(const char *geturl) {
 		return chunk.memory;
 	}
 }
-int main() {
+void on_url_submit(GtkEntry *entry, gpointer user_data) {
+    GtkTextBuffer *buffer = GTK_TEXT_BUFFER(user_data);
+    const char *url = gtk_editable_get_text(GTK_EDITABLE(entry));
+    char *content = fetchURL(url);
+
+    if (content) {
+        gtk_text_buffer_set_text(buffer, content, -1);
+        free(content);
+    } else {
+        gtk_text_buffer_set_text(buffer, "[Failed to fetch data]", -1);
+    }
+}
+
+static void activate(GtkApplication *app, gpointer user_data) {
 	printf("Launching HBB...\n");
-	if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-		printf("Launch error at SDL Video init: %s\n", SDL_GetError());
-		return 1;
-	}
-	SDL_Window *win = SDL_CreateWindow("Homebrew Browser", 100, 100, 640, 480, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-	if (!win) {
-		printf("Launch error at window creation: %s\n", SDL_GetError());
-		SDL_Quit();
-		return 1;
-	}
-	SDL_Renderer* ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
-	if (TTF_Init() == -1) {
-	    printf("Launch error at SDL TTF init %s\n", TTF_GetError());
-	    SDL_DestroyWindow(win);
-	    SDL_Quit();
-	    return 1;
-	}
-	TTF_Font* font = TTF_OpenFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24);
-	if (!font) {
-		printf("Launch error creating font: %s\n", TTF_GetError());
-		SDL_DestroyWindow(win);
-		SDL_Quit();
-		return 1;
-	}
-	char urlin[MAX_INPUT] = "";
-	char url[MAX_INPUT] = "";
-	SDL_StartTextInput();
-	SDL_Event main;
-	int running = 1;
-	char *data = NULL;
-	while (running) {
-		SDL_RenderClear(ren);
-		while (SDL_PollEvent(&main)) {
-			if (main.type == SDL_QUIT) {
-				running = 0;
-				break;
-			}
-			if (main.type == SDL_TEXTINPUT) {
-				if (strlen(urlin) + strlen(main.text.text) < MAX_INPUT - 1) {
-					strcat(urlin, main.text.text);
-				}
-				break;
-			}
-			if (main.type == SDL_KEYDOWN) {
-				if (main.key.keysym.sym == SDLK_BACKSPACE && strlen(urlin) > 0) {
-					urlin[strlen(urlin) - 1] = '\0';
-				}
-				else if (main.key.keysym.sym == SDLK_RETURN) {
-					strncpy(url, urlin, MAX_INPUT);
-					urlin[0] = '\0';
-					printf("Submitted URL %s\n", url);
-					if (data) {
-					    free(data);
-					    data = NULL;
-					}
-					data = fetchURL(url);
-				}
-				break;
-			}
-		}
-		SDL_Color Black = {0, 0, 0};
-		SDL_Color Grey1 = {128, 128, 128};
-		if (strlen(urlin) > 0) {
-			SDL_Surface* urlinput = TTF_RenderText_Blended(font, urlin, Black);
-			if (urlinput) {
-				SDL_Texture* urlintex = SDL_CreateTextureFromSurface(ren, urlinput);
-				SDL_Rect dst = {10, 10, urlinput->w, urlinput->h};
-				SDL_RenderCopy(ren, urlintex, NULL, &dst);
-				SDL_FreeSurface(urlinput);
-				SDL_DestroyTexture(urlintex);
-			}
-		} else {
-			SDL_Surface* urldisplay = TTF_RenderText_Blended(font, url, Grey1);
-			if (urldisplay) {
-				SDL_Texture* urldistex = SDL_CreateTextureFromSurface(ren, urldisplay);
-				SDL_Rect dst = {10, 10, urldisplay->w, urldisplay->h};
-				SDL_RenderCopy(ren, urldistex, NULL, &dst);
-				SDL_FreeSurface(urldisplay);
-				SDL_DestroyTexture(urldistex);
-			}
-			if (data) {
-				int winW, winH;
-				SDL_GetRendererOutputSize(ren, &winW, &winH);
-				FixedRenderString(ren, font, data, Black, 10, 60, winW, winH);
-			}
-		}
-		SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
-		SDL_RenderPresent(ren);
-		SDL_Delay(16);
-	}
+	GtkWidget *window = gtk_application_window_new(app);
+	gtk_window_set_title(GTK_WINDOW(window), "Homebrew Browser (I0.0.1)");
+	gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
+	GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+	gtk_window_set_child(GTK_WINDOW(window), vbox);
+	GtkWidget *entry = gtk_entry_new();
+	gtk_box_append(GTK_BOX(vbox), entry);
+	GtkWidget *scrolled = gtk_scrolled_window_new();
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	gtk_box_append(GTK_BOX(vbox), scrolled);
+	GtkTextBuffer *buffer = gtk_text_buffer_new(NULL);
+	GtkWidget *textview = gtk_text_view_new_with_buffer(buffer);
+	gtk_widget_set_vexpand(vbox, TRUE);
+	gtk_widget_set_vexpand(scrolled, TRUE);
+	gtk_widget_set_vexpand(textview, TRUE);
+	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(textview), GTK_WRAP_WORD_CHAR);
+	gtk_text_view_set_editable(GTK_TEXT_VIEW(textview), FALSE);
+	gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(textview), FALSE);
+	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scrolled), textview);
+	g_signal_connect(entry, "activate", G_CALLBACK(on_url_submit), buffer);
+	gtk_widget_set_visible(window, TRUE);
+}
 
-	SDL_DestroyWindow(win);
-	TTF_Quit();
-	SDL_Quit();
-	if (data) {
-		free(data);
-		data = NULL;
-	}
-
-	return 0;
+int main(int argc, char **argv) {
+	GtkApplication *app = gtk_application_new("org.eightyhd.homebrewbrowser", G_APPLICATION_DEFAULT_FLAGS);
+	g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
+	int status = g_application_run(G_APPLICATION(app), argc, argv);
+	g_object_unref(app);
+	return status;
 }
