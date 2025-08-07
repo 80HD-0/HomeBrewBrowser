@@ -6,7 +6,7 @@ HBB comes with a linux64 build in the builds folder, but if you want to build it
 example install command for debian-based distros like ubuntu (package names may vary):
 ```
 sudo apt update
-sudo apt install build-essential libsdl2-dev libsdl2-ttf-dev libcurl4-openssl-dev gcc
+sudo apt install build-essential libgtk-4-dev libcurl4-openssl-dev gcc
 ```
 Then, simply run:
 ```
@@ -15,4 +15,4 @@ make
 in the cloned directory, and the build will appear in the builds folder.
 
 # Current featureset
-As of I0.0.0, there is a url entry system that submits to a variable and shows a preview of that variable. That's it. I am implementing a content rendering system that will bring about I0.0.1.
+As of I0.0.1, the program has been rewritten in GTK (good to early on) due to its better system integration and ease of use. It now can render full webpages in raw.
