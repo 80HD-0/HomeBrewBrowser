@@ -26,7 +26,56 @@ static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
 	
 	return realsize;
 }
-void fetchURL(const char *geturl) {
+
+void FixedRenderString(SDL_Renderer *renderer, TTF_Font *font, const char *text, SDL_Color color, int x, int y, int maxWidth, int maxHeight) {
+	char *saveptr_line;
+	char *copy = strdup(text);
+	char *line = strtok_r(copy, "\n", &saveptr_line);
+	int lineHeight = TTF_FontHeight(font);
+	while (line) {
+		char currentLine[2048] = "";
+		char tempLine[1024];
+		char *saveptr_word;
+		char *word = strtok_r(line, " ", &saveptr_word);
+		while (word) {
+			if (y + lineHeight > maxHeight) {
+				return;
+			}
+			snprintf(tempLine, sizeof(tempLine), "%s %s", currentLine, word);
+			int w = 0;
+			TTF_SizeText(font, tempLine, &w, NULL);
+			if (w > maxWidth) {
+				SDL_Surface* surface = TTF_RenderText_Blended(font, currentLine, color);
+				SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+				SDL_Rect dst = {x, y, surface->w, surface->h};
+				SDL_RenderCopy(renderer, texture, NULL, &dst);
+				SDL_FreeSurface(surface);
+				SDL_DestroyTexture(texture);
+				y += lineHeight;
+				snprintf(currentLine, sizeof(currentLine), "%s", tempLine);
+			} else {
+				snprintf(currentLine, sizeof(currentLine), "%s", tempLine);
+			}
+			word = strtok_r(NULL, " ", &saveptr_word);
+		}
+		if (strlen(currentLine) > 0) {
+			if (y + lineHeight > maxHeight) {
+				return;
+			}
+			SDL_Surface* surface = TTF_RenderText_Blended(font, currentLine, color);
+			SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+			SDL_Rect dst = {x, y, surface->w, surface->h};
+			SDL_RenderCopy(renderer, texture, NULL, &dst);
+			SDL_FreeSurface(surface);
+			SDL_DestroyTexture(texture);
+			y += lineHeight;
+		}
+		line = strtok_r(NULL, "\n", &saveptr_line);
+	}
+	free(copy);
+}
+
+char *fetchURL(const char *geturl) {
 	CURL *curl_handle;
 	CURLcode res;
 	
@@ -53,7 +102,7 @@ void fetchURL(const char *geturl) {
 		}
 		
 		curl_easy_cleanup(curl_handle);
-		free(chunk.memory);
+		return chunk.memory;
 	}
 }
 int main() {
@@ -87,7 +136,7 @@ int main() {
 	SDL_StartTextInput();
 	SDL_Event main;
 	int running = 1;
-
+	char *data = NULL;
 	while (running) {
 		SDL_RenderClear(ren);
 		while (SDL_PollEvent(&main)) {
@@ -109,7 +158,11 @@ int main() {
 					strncpy(url, urlin, MAX_INPUT);
 					urlin[0] = '\0';
 					printf("Submitted URL %s\n", url);
-					fetchURL(url);
+					if (data) {
+					    free(data);
+					    data = NULL;
+					}
+					data = fetchURL(url);
 				}
 				break;
 			}
@@ -134,6 +187,11 @@ int main() {
 				SDL_FreeSurface(urldisplay);
 				SDL_DestroyTexture(urldistex);
 			}
+			if (data) {
+				int winW, winH;
+				SDL_GetRendererOutputSize(ren, &winW, &winH);
+				FixedRenderString(ren, font, data, Black, 10, 60, winW, winH);
+			}
 		}
 		SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
 		SDL_RenderPresent(ren);
@@ -143,6 +201,10 @@ int main() {
 	SDL_DestroyWindow(win);
 	TTF_Quit();
 	SDL_Quit();
+	if (data) {
+		free(data);
+		data = NULL;
+	}
 
 	return 0;
 }
