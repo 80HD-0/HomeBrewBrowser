@@ -3,7 +3,14 @@
 #include <gtk/gtkentry.h>
 #include <string.h>
 #include <curl/curl.h>
-
+char *concats(const char *a, const char *b) {
+    size_t len = strlen(a) + strlen(b) + 1;
+    char *result = malloc(len);
+    if (!result) return NULL;
+    strcpy(result, a);
+    strcat(result, b);
+    return result;
+}
 struct MemoryStruct {
 	char *memory;
 	size_t size;
@@ -58,37 +65,51 @@ char *fetchURL(const char *geturl) {
 
 typedef struct {
 	char *tag;
-	int end;
+	int pos;
 } Tag;
-//Tag findEndTag(const char *data, const int start, const char *target) {
-//	data += start;
-//	char *tag = malloc(256); 
-//	if (!tag) return (Tag){NULL, 0};
-//	Tag tags = {NULL, 0};
-//	while (1) {
-//		int i = 0;
-//		while (*data != '<' && *data != '\0') {
-//			if (*data == '\0') break;
-//			data++;
-//		} if (*data == '\0') break; data++;
-//		while (*data != '>' && i < 255) {
-//			if (*data == '\0') break;
-//			tag[i++] = *data++;
-//		} if (*data == '\0') break; data++;
-//		if (strcmp(tag, target) == 0) {
-//			break;
-//		} else {
-//			tag[1] = '\0'
-//			continue;
-//		}
-//	}
-//	tag[i] = '\0';
-//	i += 2;
-//	printf("got tag %s that ends at %i\n", tag, i);
-//	tags.tag = tag;
-//	tags.end = i;
-//	return tags;
-//}           WORKING ON THIS
+
+//How rendering will work:
+//structure containing font size, italicized, bold, font, color, etc.
+//function that has definitions for common tags, probably some kind of default since a lot of elems are default
+//call function, store an array of them somehow
+//print
+//bam boom bang
+
+Tag findEndTag(const char *data, const int start, const char *target) {
+	char *closingTag = concats("/", target);
+	data += start;
+	int poscnt = start;
+	char *tag = malloc(256); 
+	if (!tag) return (Tag){NULL, 0};
+	Tag tags = {NULL, 0};
+	while (*data != '\0') {
+		int i = 0;
+		while (*data != '<' && *data != '\0') {
+			if (*data == '\0') break;
+			data++;
+			poscnt++;
+		} if (*data == '\0') break; data++; poscnt++;
+		while (*data != '>' && i < 255) {
+			if (*data == '\0') break;
+			tag[i++] = *data++;
+			poscnt++;
+		} if (*data == '\0') break; data++; poscnt++;
+		tag[i] = '\0';
+		if (strcmp(closingTag, tag) == 0) {
+			free(closingTag);
+			printf("got end tag %s that starts at %i\n", tag, poscnt);
+			tags.tag = tag;
+			tags.pos = poscnt - (i + 2);
+			return tags;
+		} else {
+			tag[0] = '\0';
+			continue;
+		}
+	}
+	free(tag);
+	printf("Tag end not found");
+	return (Tag){NULL, 0};
+}//           WORKING ON THIS
 Tag findFirstTag(const char *data, const int start) {
 	data += start;
 	char *tag = malloc(256);
@@ -105,14 +126,18 @@ Tag findFirstTag(const char *data, const int start) {
 	i += 2;
 	printf("got tag %s that ends at %i\n", tag, i);
 	tags.tag = tag;
-	tags.end = i;
+	tags.pos = i;
 	return tags;
 }
-
 char *parseHTML(const char *data) {
 //	while (*data != '\0') {
-		findFirstTag(data, 0);
+		Tag beginning = findFirstTag(data, 0);
+		while (beginning.tag[1] == '!' && beginning.tag != NULL) {
+			beginning = findFirstTag(data, beginning.pos);
+		}
+		Tag end = findEndTag(data, beginning.pos, beginning.tag);
 //	}
+
 	return data; // This line completely skips this function - the rest of it is in testing
 }
 
@@ -124,10 +149,10 @@ void on_url_submit(GtkEntry *entry, gpointer user_data) {
 
     if (content) {
         gtk_text_buffer_set_text(buffer, content, -1);
-        free(content);
     } else {
         gtk_text_buffer_set_text(buffer, "[Failed to fetch data]", -1);
     }
+    free(rawcontent);
 }
 
 static void activate(GtkApplication *app, gpointer user_data) {
@@ -159,6 +184,7 @@ int main(int argc, char **argv) {
 	GtkApplication *app = gtk_application_new("org.eightyhd.homebrewbrowser", G_APPLICATION_DEFAULT_FLAGS);
 	g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
 	int status = g_application_run(G_APPLICATION(app), argc, argv);
+	curl_global_cleanup();
 	g_object_unref(app);
 	return status;
 }
