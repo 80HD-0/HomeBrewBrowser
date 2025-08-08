@@ -67,13 +67,42 @@ typedef struct {
 	char *tag;
 	int pos;
 } Tag;
-
+typedef struct {
+	char *content;
+	char *font;
+	int fontsize;
+	unsigned int color;
+	int offsetx;
+	int offsety;
+	bool ital;
+	bool bold;
+} Element;
 //How rendering will work:
 //structure containing font size, italicized, bold, font, color, etc.
 //function that has definitions for common tags, probably some kind of default since a lot of elems are default
 //call function, store an array of them somehow
 //print
 //bam boom bang
+
+Element GetElement(const char *tag, const char *data, const int start, const int end) {
+	size_t maxlen = (size_t)(end - start);
+	char *temp = malloc(maxlen + 1);
+	if (!temp) {
+		fprintf(stderr, "Out of memory\n");
+		return (Element){NULL, "DejaVu Sans", 10, 0x000000, 0, 0, false, false};
+	}
+
+	memcpy(temp, data + start, maxlen);
+	temp[maxlen] = '\0';
+
+	Element out = { temp, "DejaVu Sans", 10, 0x000000, 0, 0, false, false };
+
+	if (strcmp(tag, "h1") == 0) out.fontsize = 25;
+	if (strcmp(tag, "h2") == 0) out.fontsize = 20;
+	if (strcmp(tag, "h3") == 0) out.fontsize = 15;
+	printf("Found element %s", out.content);
+	return out;
+}
 
 Tag findEndTag(const char *data, const int start, const char *target) {
 	char *closingTag = concats("/", target);
@@ -109,33 +138,38 @@ Tag findEndTag(const char *data, const int start, const char *target) {
 	free(tag);
 	printf("Tag end not found");
 	return (Tag){NULL, 0};
-}//           WORKING ON THIS
+}
 Tag findFirstTag(const char *data, const int start) {
 	data += start;
 	char *tag = malloc(256);
 	if (!tag) return (Tag){NULL, 0};
 	int i = 0;
+	int count = start;
 	Tag tags = {NULL, 0};
 	while (*data != '<' && *data != '\0') {
-		data++;
+		data++; count++;
 	} data++;
 	while (*data != '>' && i < 255) {
-		tag[i++] = *data++;
-	} data++;
+		tag[i++] = *data++; count++;
+	} data++; count++;
 	tag[i] = '\0';
-	i += 2;
-	printf("got tag %s that ends at %i\n", tag, i);
+	i += 2; count++;
+	printf("got tag %s that ends at %i\n", tag, count);
 	tags.tag = tag;
-	tags.pos = i;
+	tags.pos = count;
 	return tags;
 }
 char *parseHTML(const char *data) {
 //	while (*data != '\0') {
 		Tag beginning = findFirstTag(data, 0);
-		while (beginning.tag[1] == '!' && beginning.tag != NULL) {
-			beginning = findFirstTag(data, beginning.pos);
+
+		while (beginning.tag != NULL && beginning.tag[0] == '!') {
+		    beginning = findFirstTag(data, beginning.pos);
 		}
-		Tag end = findEndTag(data, beginning.pos, beginning.tag);
+		if (beginning.tag != NULL) {
+			Tag end = findEndTag(data, beginning.pos, beginning.tag);
+			Element elem = GetElement(beginning.tag, data, beginning.pos, end.pos);
+		}
 //	}
 
 	return data; // This line completely skips this function - the rest of it is in testing
