@@ -56,19 +56,62 @@ char *fetchURL(const char *geturl) {
 	}
 }
 
-char *parseHTML(const char *data) {
+typedef struct {
+	char *tag;
+	int end;
+} Tag;
+//Tag findEndTag(const char *data, const int start, const char *target) {
+//	data += start;
+//	char *tag = malloc(256); 
+//	if (!tag) return (Tag){NULL, 0};
+//	Tag tags = {NULL, 0};
+//	while (1) {
+//		int i = 0;
+//		while (*data != '<' && *data != '\0') {
+//			if (*data == '\0') break;
+//			data++;
+//		} if (*data == '\0') break; data++;
+//		while (*data != '>' && i < 255) {
+//			if (*data == '\0') break;
+//			tag[i++] = *data++;
+//		} if (*data == '\0') break; data++;
+//		if (strcmp(tag, target) == 0) {
+//			break;
+//		} else {
+//			tag[1] = '\0'
+//			continue;
+//		}
+//	}
+//	tag[i] = '\0';
+//	i += 2;
+//	printf("got tag %s that ends at %i\n", tag, i);
+//	tags.tag = tag;
+//	tags.end = i;
+//	return tags;
+//}           WORKING ON THIS
+Tag findFirstTag(const char *data, const int start) {
+	data += start;
 	char *tag = malloc(256);
-	if (!tag) return NULL;
+	if (!tag) return (Tag){NULL, 0};
+	int i = 0;
+	Tag tags = {NULL, 0};
+	while (*data != '<' && *data != '\0') {
+		data++;
+	} data++;
+	while (*data != '>' && i < 255) {
+		tag[i++] = *data++;
+	} data++;
+	tag[i] = '\0';
+	i += 2;
+	printf("got tag %s that ends at %i\n", tag, i);
+	tags.tag = tag;
+	tags.end = i;
+	return tags;
+}
+
+char *parseHTML(const char *data) {
 //	while (*data != '\0') {
-		int i = 0;
-		while (*data != '<') {
-			data++;
-		} data++;
-		while (*data != '>' && i < 255) {
-			tag[i++] = *data++;
-		} data++;
-		tag[i] = '\0';
-		printf(tag);
+		findFirstTag(data, 0);
 //	}
 	return data; // This line completely skips this function - the rest of it is in testing
 }
